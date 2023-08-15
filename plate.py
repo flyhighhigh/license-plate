@@ -18,7 +18,7 @@ def findIntersection(line1,line2):
 
 names = os.listdir("images")
 for name in names:
-    img = cv2.imread(name)
+    img = cv2.imread("images/"+name)
     assert img is not None, "file could not be read, check with os.path.exists()"
     # img = cv2.medianBlur(img,5)
     
