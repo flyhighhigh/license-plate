@@ -3,6 +3,7 @@ import os
 from matplotlib import pyplot as plt
 import numpy as np
 import math
+import time
 
 
 def findIntersection(line1,line2):
@@ -30,7 +31,7 @@ for name in names:
 
     # 前處理
     ret,th1 = cv2.threshold(hist,127,255,cv2.THRESH_BINARY)
-    th1 = cv2.medianBlur(th1, 5)
+    th1 = cv2.medianBlur(th1, 5) # 模糊化 降噪
     # kernel = cv2.getStructuringElement(cv2.MORPH_RECT,(5,5))
     # th1 = cv2.morphologyEx(th1, cv2.MORPH_DILATE, kernel)
     bin2 =cv2.adaptiveThreshold(th1, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 11, 2)
@@ -67,6 +68,7 @@ for name in names:
     linesP = cv2.HoughLinesP(bin2, 1, np.pi / 180, 5, None, 25, 5)
     
     angles = [0, np.pi/2] # 預先加入0,90度 以便分類
+    angles_test = [np.pi/2, np.pi]
     warped = img.copy()
     cv2.putText(warped,"Not Modified",(10, 20),cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
     
@@ -80,21 +82,77 @@ for name in names:
         for l in linesP: # 計算角度
             cv2.line(test_hough1, (l[0][0], l[0][1]), (l[0][2], l[0][3]), (0, 255, 0), 3, cv2.LINE_AA)
             a = abs(math.atan2(l[0][1]-l[0][3],l[0][2]-l[0][0]))
+            b = math.atan2(l[0][1]-l[0][3],l[0][2]-l[0][0]) + np.pi/2
             # if a < 0: a += 180
             angles.append(a)
+            angles_test.append(b)
         # print(angles)
     
         angles = np.array(angles,dtype=np.float32)
         criteria = ( cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
         ret, labels, centers = cv2.kmeans(angles, 2, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
         # print(ret, labels, centers)
-
+        
+        # 以下為直接使用center的寫法，較快
+        angles_test = np.array([[np.cos(2*angle), np.sin(2*angle)]
+                    for angle in angles_test], dtype=np.float32)
+        _, llll, centers_test = cv2.kmeans(angles_test, 2, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
+        starttime = time.time()
+        
+        idxs = llll[2:] # 去除一開始的0, 90度
+        
+        H = 0
+        if llll[0][0] == 1:
+            H = 1
+            # for l in linesP[idxs.ravel()==1]:
+            #     cv2.line(test_hough4, (l[0][0], l[0][1]), (l[0][2], l[0][3]), (0, 255, 0), 3, cv2.LINE_AA)
+            # for l in linesP[idxs.ravel()==0]:
+            #     cv2.line(test_hough4, (l[0][0], l[0][1]), (l[0][2], l[0][3]), (0, 0, 255), 3, cv2.LINE_AA)
+        else:
+            # for l in linesP[idxs.ravel()==0]:
+            #     cv2.line(test_hough4, (l[0][0], l[0][1]), (l[0][2], l[0][3]), (0, 255, 0), 3, cv2.LINE_AA)
+            # for l in linesP[idxs.ravel()==1]:
+            #     cv2.line(test_hough4, (l[0][0], l[0][1]), (l[0][2], l[0][3]), (0, 0, 255), 3, cv2.LINE_AA)
+            pass
+        
+        centers_test = [math.atan2(c[1],c[0])/2 + np.pi/2 for c in centers_test]
+        # print(centers_test)
+        
+        a = math.cos(centers_test[H])
+        b = math.sin(centers_test[H])
+        c = width//2
+        line_top = [int(c+1000*(a)),int(0+1000*(-b)),int(c-1000*(a)),int(0-1000*(-b))]
+        line_dwn = [int(c+1000*(a)),int(height+1000*(-b)),int(c-1000*(a)),int(height-1000*(-b))]
+        # cv2.line(test_hough4, line_top[:2], line_top[2:], (255, 0, 0), 3, cv2.LINE_AA)
+        # cv2.line(test_hough4, line_dwn[:2], line_dwn[2:], (255, 0, 0), 3, cv2.LINE_AA)
+        a = math.cos(centers_test[1 if H == 0 else 0])
+        b = math.sin(centers_test[1 if H == 0 else 0])
+        h = height//2
+        line_l = [int(0+1000*(a)),int(h+1000*(-b)),int(0-1000*(a)),int(h-1000*(-b))]
+        line_r = [int(width+1000*(a)),int(h+1000*(-b)),int(width-1000*(a)),int(h-1000*(-b))]
+        # cv2.line(test_hough4, line_l[:2], line_l[2:], (255, 0, 0), 3, cv2.LINE_AA)
+        # cv2.line(test_hough4, line_r[:2], line_r[2:], (255, 0, 0), 3, cv2.LINE_AA)
+            
+        pt1 = findIntersection(line_l,line_top)
+        pt2 = findIntersection(line_top,line_r)
+        pt3 = findIntersection(line_r,line_dwn)
+        pt4 = findIntersection(line_dwn,line_l)
+        
+        if pt1 is not None and pt2 is not None and pt3 is not None and pt4 is not None:
+            M = cv2.getPerspectiveTransform(np.float32([pt1,pt2,pt3,pt4]),np.float32([[0,0],[width,0],[width,height],[0,height]]))
+            new_warped = cv2.warpPerspective(img.copy(),M,(width,height),flags=cv2.INTER_LINEAR)
+        # 以上是直接用center的寫法，但是會被太短的線影響
+        endtime = time.time()
+        print("new time:",endtime-starttime)
+        
+        starttime = time.time()
         idxs = labels[2:] # 去除一開始的0, 90度
         linesH = linesP[idxs.ravel()==0]
         linesV = linesP[idxs.ravel()==1]
         if labels[0][0] == 1:
             linesH, linesV = linesV, linesH
-        
+            centers = centers[::-1]
+            
         # 依線段長度排序
         linesH = sorted(linesH,key=lambda l: (l[0][0]-l[0][2])**2+(l[0][1]-l[0][3])**2,reverse=True)
         linesV = sorted(linesV,key=lambda l: (l[0][0]-l[0][2])**2+(l[0][1]-l[0][3])**2,reverse=True)
@@ -106,10 +164,10 @@ for name in names:
         # 平行線段們
         all_length = 0
         avg_theta = 0
-        cv2.putText(test_hough2,"Horizontal",(10, 20),cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 1)
+        # cv2.putText(test_hough2,"Horizontal",(10, 20),cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 1)
         for i in range(0, len(linesH)):
             l = linesH[i][0]
-            cv2.line(test_hough2, (l[0], l[1]), (l[2], l[3]), (0, 255, 0), 3, cv2.LINE_AA)
+            # cv2.line(test_hough2, (l[0], l[1]), (l[2], l[3]), (0, 255, 0), 3, cv2.LINE_AA)
             length = (l[0]-l[2])**2+(l[1]-l[3])**2
             avg_theta += math.atan2(l[1]-l[3],l[2]-l[0]) * length
             all_length += length
@@ -120,16 +178,16 @@ for name in names:
         c = width//2
         line_top = [int(c+1000*(a)),int(0+1000*(-b)),int(c-1000*(a)),int(0-1000*(-b))]
         line_dwn = [int(c+1000*(a)),int(height+1000*(-b)),int(c-1000*(a)),int(height-1000*(-b))]
-        cv2.line(test_hough3, line_top[:2], line_top[2:], (255, 0, 0), 3, cv2.LINE_AA)
-        cv2.line(test_hough3, line_dwn[:2], line_dwn[2:], (255, 0, 0), 3, cv2.LINE_AA)
+        # cv2.line(test_hough3, line_top[:2], line_top[2:], (255, 0, 0), 3, cv2.LINE_AA)
+        # cv2.line(test_hough3, line_dwn[:2], line_dwn[2:], (255, 0, 0), 3, cv2.LINE_AA)
         
         # 垂直線段們
         all_length = 0
         avg_theta = 0
-        cv2.putText(test_hough2,"Vertical",(10, 40),cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 1)
+        # cv2.putText(test_hough2,"Vertical",(10, 40),cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 1)
         for i in range(0, len(linesV)):
             l = linesV[i][0]
-            cv2.line(test_hough2, (l[0], l[1]), (l[2], l[3]), (0, 0, 255), 3, cv2.LINE_AA)
+            # cv2.line(test_hough2, (l[0], l[1]), (l[2], l[3]), (0, 0, 255), 3, cv2.LINE_AA)
             length = math.sqrt((l[0]-l[2])**2+(l[1]-l[3])**2)
             theta = math.atan2(l[1]-l[3],l[2]-l[0])
             if theta < 0: theta += np.pi # 將-89變成91度
@@ -142,8 +200,8 @@ for name in names:
         h = height//2
         line_l = [int(0+1000*(a)),int(h+1000*(-b)),int(0-1000*(a)),int(h-1000*(-b))]
         line_r = [int(width+1000*(a)),int(h+1000*(-b)),int(width-1000*(a)),int(h-1000*(-b))]
-        cv2.line(test_hough3, line_l[:2], line_l[2:], (255, 0, 0), 3, cv2.LINE_AA)
-        cv2.line(test_hough3, line_r[:2], line_r[2:], (255, 0, 0), 3, cv2.LINE_AA)
+        # cv2.line(test_hough3, line_l[:2], line_l[2:], (255, 0, 0), 3, cv2.LINE_AA)
+        # cv2.line(test_hough3, line_r[:2], line_r[2:], (255, 0, 0), 3, cv2.LINE_AA)
         
         # 找四角
         pt1 = findIntersection(line_l,line_top)
@@ -154,13 +212,16 @@ for name in names:
         if pt1 is not None and pt2 is not None and pt3 is not None and pt4 is not None:
             M = cv2.getPerspectiveTransform(np.float32([pt1,pt2,pt3,pt4]),np.float32([[0,0],[width,0],[width,height],[0,height]]))
             warped = cv2.warpPerspective(img.copy(),M,(width,height),flags=cv2.INTER_LINEAR)
-    
+        endtime = time.time()
+        print("old time:",endtime-starttime,"\n")
         
     cv2.imshow("Detected Lines - Probabilistic Hough Line", test_hough1)
     cv2.imshow("Line Segmentation", test_hough2)
     cv2.imshow("Draw Lines",test_hough3)
+    cv2.imshow("Center test",test_hough4)
 
     cv2.imshow("Perspective Transform",warped)
+    cv2.imshow("Fast Perspective Trans",new_warped)
     
     cv2.waitKey(0)
     continue
