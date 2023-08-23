@@ -9,9 +9,8 @@ bool findIntersection(Point2f* line1, Point2f* line2, Point2f& resPt)
 {
 	Point2f pt1 = line1[0], pt2 = line1[1], pt3 = line2[0], pt4 = line2[1];
 	Point2f a = pt1 - pt2, b = pt3 - pt4;
-	float c = a.cross(b);
-	// 兩線平行
-	if (c == 0) return false;
+	float c = a.x * b.y - a.y * b.x; // cross (a,b)
+	if (c == 0) return false; // 兩線平行
 	float t1 = pt1.x * pt2.y - pt1.y * pt2.x; // cross (pt1,pt2)
 	float t2 = pt3.x * pt4.y - pt3.y * pt4.x; // cross (pt3,pt4)
 	
@@ -19,16 +18,11 @@ bool findIntersection(Point2f* line1, Point2f* line2, Point2f& resPt)
 	resPt.y = ( t1 * b.y - a.y * t2 ) / c;
 	return true;
 }
-
-int main(int argc, char const *argv[])
-{
-    Mat img = imread("images/1.jpg");
-	// imshow("img",img);
-	int height = img.size[0], width = img.size[1];
-	
+bool plateCorrection (Mat src, Mat& dst){
+	int height = src.size[0], width = src.size[1];
 	// preprocess
 	Mat gray, hist, th1, bin2;
-	cvtColor(img, gray, cv::COLOR_BGR2GRAY);
+	cvtColor(src, gray, cv::COLOR_BGR2GRAY);
 	equalizeHist(gray, hist);
 	threshold(hist, th1, 127, 255, THRESH_BINARY);
 	medianBlur(th1, th1, 5);
@@ -39,7 +33,7 @@ int main(int argc, char const *argv[])
 	vector<Vec4i> linesP;
 	HoughLinesP(bin2, linesP, 1, CV_PI/180, 5, 25, 5);
 	int lineSize = linesP.size();
-	if(lineSize == 0) exit(0); // TODO: break
+	if(lineSize == 0) return false; // TODO: break
 	
 	// Lines' segmentation using angle (kmeans split to 2 set)
 	vector<Point2f> angles;
@@ -101,11 +95,20 @@ int main(int argc, char const *argv[])
 	// 	cout << pt << endl;
 	// }
 
-	if(!(b1 && b2 && b3 && b4)) exit(0); // TODO: break
+	if(!(b1 && b2 && b3 && b4)) return false; // TODO: break
 
 	Mat M = getPerspectiveTransform(srcPt, dstPt), warped;
-	warpPerspective(img, warped, M, Size(width,height), INTER_LINEAR);
+	warpPerspective(src, dst, M, Size(width,height), INTER_LINEAR);
+	return true;
 	// imshow("warped", warped);
+	// waitKey(0);
+}
+int main(int argc, char const *argv[])
+{
+    Mat img = imread("images/1.jpg"), dst;
+	imshow("img",img);
+	bool b = plateCorrection(img, dst);
+	if (b) imshow("new",dst);
 	waitKey(0);
 	return 0;
 }
