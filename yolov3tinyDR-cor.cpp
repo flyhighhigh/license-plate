@@ -525,10 +525,10 @@ int main(int argc, char* argv[]) {
 		for (int i = 0; i < sortConf_det.size(); i++)
 		{
 			float confidence = sortConf_det[i][0]; // 取最大信心的 或是唯一一個
-			int xmin = int(sortConf_det[i][1]);
-			int ymin = int(sortConf_det[i][2]);
-			int xmax = int(sortConf_det[i][3]);
-			int ymax = int(sortConf_det[i][4]);
+			float xmin = sortConf_det[i][1];
+			float ymin = sortConf_det[i][2];
+			float xmax = sortConf_det[i][3];
+			float ymax = sortConf_det[i][4];
 			//use aspect ratio, width, height to avoid the error judge
 			// if (((xmax - xmin) / (ymax - ymin) < 1) || ((xmax - xmin) / (ymax - ymin) > 3) || (xmax - xmin > 200) || (ymax - ymin > 100))
 			// 	continue;
@@ -537,8 +537,17 @@ int main(int argc, char* argv[]) {
 			xmax = min(xmax + 5, frame_det.cols);
 			ymin = max(ymin - 5, 0);
 			ymax = min(ymax + 5, frame_det.rows);
+			if((xmax - xmin) / (ymax - ymin) > 4/3){ // 比4:3還扁，讓他變成4:3
+				float outer = ((xmax - xmin)*3/4 - (ymax - ymin)) / 2; // 新增部分
+				ymin = max(ymin - outer, 0);
+				ymax = min(ymax + outer, frame_det.rows);
+			} else {
+				float outer = ((ymax - ymin)*4/3 - (xmax - xmin)) / 2; // 新增部分
+				xmin = max(xmin - outer, 0);
+				xmax = min(xmax + outer, frame_det.cols);
+			}
 			//cout << "RESULT: " << "plate" << "\t" << xmin << "\t" << ymin << "\t" << xmax << "\t" << ymax << "\t" << confidence << "\n";
-			plate_det = frame_det(Rect(xmin, ymin, xmax - xmin, ymax - ymin));
+			plate_det = frame_det(Rect(int(xmin), int(ymin), int(xmax - xmin), int(ymax - ymin)));
 			// correction code here
 			bool b = plateCorrection(plate_det, plate_cor);
 			if(b)  resize(plate_cor, plate, Size(512, 224));
@@ -548,7 +557,7 @@ int main(int argc, char* argv[]) {
 			imwrite("./Det_plate/"+to_string(frameCount)+"_"+to_string(confidence)+"_det.jpg",plate_det); // 偵測到的車牌
 			imwrite("./Det_plate/"+to_string(frameCount)+"_"+to_string(confidence)+"_cor.jpg",plate_cor); // 經過角度校正
 			plateValid = 1;
-			// break;
+			break;
 		}
 		
 		if (plateValid) // 如果上面的code有偵測到車牌

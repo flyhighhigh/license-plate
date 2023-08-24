@@ -105,7 +105,7 @@ bool plateCorrection (Mat src, Mat& dst){
 }
 int main(int argc, char const *argv[])
 {
-    Mat img = imread("images/1.jpg"), dst;
+	Mat img = imread("images/1.jpg"), dst;
 	imshow("img",img);
 	bool b = plateCorrection(img, dst);
 	if (b) imshow("new",dst);
