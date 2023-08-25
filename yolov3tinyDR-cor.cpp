@@ -529,21 +529,22 @@ int main(int argc, char* argv[]) {
 			float ymin = sortConf_det[i][2];
 			float xmax = sortConf_det[i][3];
 			float ymax = sortConf_det[i][4];
+			float rows = frame_det.cols, cols = frame_det.cols;
 			//use aspect ratio, width, height to avoid the error judge
 			// if (((xmax - xmin) / (ymax - ymin) < 1) || ((xmax - xmin) / (ymax - ymin) > 3) || (xmax - xmin > 200) || (ymax - ymin > 100))
 			// 	continue;
 			//widen the region 取得車牌部分時，多取一點 以避免不小心切掉
-			xmin = max(xmin - 5, 0);
-			xmax = min(xmax + 5, frame_det.cols);
-			ymin = max(ymin - 5, 0);
-			ymax = min(ymax + 5, frame_det.rows);
-			if((xmax - xmin) / (ymax - ymin) > 4/3){ // 比4:3還扁，讓他變成4:3
-				float outer = ((xmax - xmin)*3/4 - (ymax - ymin)) / 2; // 新增部分
-				ymin = max(ymin - outer, 0);
+			xmin = max(xmin - 5.0f, 0.0f);
+			xmax = min(xmax + 5.0f, cols);
+			ymin = max(ymin - 5.0f, 0.0f);
+			ymax = min(ymax + 5.0f, rows);
+			if((xmax - xmin) / (ymax - ymin) > 1.33333f){ // 比4:3還扁，讓他變成4:3
+				float outer = ((xmax - xmin)*0.75f - (ymax - ymin)) / 2; // 新增部分
+				ymin = max(ymin - outer, 0.0f);
 				ymax = min(ymax + outer, frame_det.rows);
 			} else {
-				float outer = ((ymax - ymin)*4/3 - (xmax - xmin)) / 2; // 新增部分
-				xmin = max(xmin - outer, 0);
+				float outer = ((ymax - ymin)*1.33333f - (xmax - xmin)) / 2; // 新增部分
+				xmin = max(xmin - outer, 0.0f);
 				xmax = min(xmax + outer, frame_det.cols);
 			}
 			//cout << "RESULT: " << "plate" << "\t" << xmin << "\t" << ymin << "\t" << xmax << "\t" << ymax << "\t" << confidence << "\n";
