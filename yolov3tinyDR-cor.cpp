@@ -477,7 +477,7 @@ int main(int argc, char* argv[]) {
 		plateStr = "";
 		showStr = "";
 		flag = 0;
-		Mat plate, plate_det, plate_cor;
+		Mat plate, plate_det, plate_widen, plate_resize, plate_cor;
 		//input_cols_det.push_back(frame_det.cols);
 		//input_rows_det.push_back(frame_det.rows);
 		resize(frame_det, image_det, size_det); // frame_det原圖 image_det縮放後 size_det模型tensor的size
@@ -533,11 +533,14 @@ int main(int argc, char* argv[]) {
 			//use aspect ratio, width, height to avoid the error judge
 			// if (((xmax - xmin) / (ymax - ymin) < 1) || ((xmax - xmin) / (ymax - ymin) > 3) || (xmax - xmin > 200) || (ymax - ymin > 100))
 			// 	continue;
+			
 			//widen the region 取得車牌部分時，多取一點 以避免不小心切掉
 			xmin = max(xmin - 5, 0);
 			xmax = min(xmax + 5, frame_det.cols);
 			ymin = max(ymin - 5, 0);
 			ymax = min(ymax + 5, frame_det.rows);
+			plate_det = frame_det(Rect(xmin, ymin, xmax - xmin, ymax - ymin));
+			// --- 4:3 wider
 			if((xmax - xmin) * 3 > (ymax - ymin) * 4){ // 比4:3還扁，讓他變成4:3
 				int outer = ((xmax - xmin) * 3 - (ymax - ymin) * 4) / 8; // 新增部分
 				ymin = max(ymin - outer, 0);
@@ -547,16 +550,20 @@ int main(int argc, char* argv[]) {
 				xmin = max(xmin - outer, 0);
 				xmax = min(xmax + outer, frame_det.cols);
 			}
+			plate_widen = frame_det(Rect(xmin, ymin, xmax - xmin, ymax - ymin));
 			//cout << "RESULT: " << "plate" << "\t" << xmin << "\t" << ymin << "\t" << xmax << "\t" << ymax << "\t" << confidence << "\n";
-			plate_det = frame_det(Rect(xmin, ymin, xmax - xmin, ymax - ymin));
+			
 			// correction code here
-			bool b = plateCorrection(plate_det, plate_cor);
+			resize(plate_widen, plate_resize, Size(512, 224));
+			bool b = plateCorrection(plate_resize, plate_cor);
 			if(b)  resize(plate_cor, plate, Size(512, 224));
 			else resize(plate_det, plate, Size(512, 224));
 
 			//rectangle(frame_det, Point(xmin, ymin), Point(xmax, ymax), Scalar(0, 255, 0), 2, 1, 0);
-			imwrite("./Det_plate/"+to_string(frameCount)+"_"+to_string(confidence)+"_det.jpg",plate_det); // 偵測到的車牌
-			imwrite("./Det_plate/"+to_string(frameCount)+"_"+to_string(confidence)+"_cor.jpg",plate_cor); // 經過角度校正
+			imwrite("./Det_plate/"+to_string(frameCount)+"_"+to_string(confidence)+"_det.jpg", plate_det); // 偵測到的車牌+5pix
+			imwrite("./Det_plate/"+to_string(frameCount)+"_"+to_string(confidence)+"_widen.jpg", plate_widen); // 偵測到的車牌+5pix 再做4:3 widen
+			imwrite("./Det_plate/"+to_string(frameCount)+"_"+to_string(confidence)+"_resize.jpg", plate_resize); // 偵測到的車牌+5pix 再做4:3 widen
+			imwrite("./Det_plate/"+to_string(frameCount)+"_"+to_string(confidence)+"_cor.jpg", plate_cor); // 以上resize成512:224，再經過角度校正
 			plateValid = 1;
 			break;
 		}
