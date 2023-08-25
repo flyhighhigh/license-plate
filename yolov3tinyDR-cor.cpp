@@ -541,11 +541,11 @@ int main(int argc, char* argv[]) {
 			if((xmax - xmin) / (ymax - ymin) > 1.33333f){ // 比4:3還扁，讓他變成4:3
 				float outer = ((xmax - xmin)*0.75f - (ymax - ymin)) / 2; // 新增部分
 				ymin = max(ymin - outer, 0.0f);
-				ymax = min(ymax + outer, frame_det.rows);
+				ymax = min(ymax + outer, rows);
 			} else {
 				float outer = ((ymax - ymin)*1.33333f - (xmax - xmin)) / 2; // 新增部分
 				xmin = max(xmin - outer, 0.0f);
-				xmax = min(xmax + outer, frame_det.cols);
+				xmax = min(xmax + outer, cols);
 			}
 			//cout << "RESULT: " << "plate" << "\t" << xmin << "\t" << ymin << "\t" << xmax << "\t" << ymax << "\t" << confidence << "\n";
 			plate_det = frame_det(Rect(int(xmin), int(ymin), int(xmax - xmin), int(ymax - ymin)));
