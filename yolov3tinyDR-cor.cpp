@@ -538,12 +538,13 @@ int main(int argc, char* argv[]) {
 			if (((xmax - xmin) * 13 < (ymax - ymin) * 10) || ((xmax - xmin) > 3 * (ymax - ymin)) || (xmax - xmin) * (ymax - ymin) < 6000)
 				continue;
 			
+			plate_det = frame_det(Rect(xmin, ymin, xmax - xmin, ymax - ymin));
+
 			// widen the region 取得車牌部分時，多取一點 以避免不小心切掉
 			xmin = max(xmin - 5, 0);
 			xmax = min(xmax + 5, frame_det.cols);
 			ymin = max(ymin - 5, 0);
 			ymax = min(ymax + 5, frame_det.rows);
-			plate_det = frame_det(Rect(xmin, ymin, xmax - xmin, ymax - ymin));
 			// --- 4:3 widen
 			if((xmax - xmin) * 3 > (ymax - ymin) * 4){ // 比4:3還扁，讓他變成4:3
 				int outer = ((xmax - xmin) * 3 - (ymax - ymin) * 4) / 8; // 新增部分
