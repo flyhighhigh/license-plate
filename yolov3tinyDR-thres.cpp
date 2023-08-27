@@ -567,10 +567,10 @@ int main(int argc, char* argv[]) {
 			plate = plate_resize;
 
 			//rectangle(frame_det, Point(xmin, ymin), Point(xmax, ymax), Scalar(0, 255, 0), 2, 1, 0);
-			// imwrite("./Det_plate/"+to_string(frameCount)+"_"+to_string(confidence)+"_det.jpg", plate_det); // 偵測到的車牌+5pix
-			// imwrite("./Det_plate/"+to_string(frameCount)+"_"+to_string(confidence)+"_widen.jpg", plate_widen); // 偵測到的車牌+5pix 再做4:3 widen
-			// imwrite("./Det_plate/"+to_string(frameCount)+"_"+to_string(confidence)+"_resize.jpg", plate_resize); // 偵測到的車牌+5pix 再做4:3 widen
-			// imwrite("./Det_plate/"+to_string(frameCount)+"_"+to_string(confidence)+"_cor.jpg", plate_cor); // 以上resize成512:224，再經過角度校正
+			imwrite("./Det_plate/"+to_string(frameCount)+"_"+to_string(confidence)+"_det.jpg", plate_det); // 偵測到的車牌
+			imwrite("./Det_plate/"+to_string(frameCount)+"_"+to_string(confidence)+"_widen.jpg", plate_widen); // 偵測到的車牌+5pix 再做4:3 widen
+			imwrite("./Det_plate/"+to_string(frameCount)+"_"+to_string(confidence)+"_resize.jpg", plate_resize); // 再resize成512:224
+			// imwrite("./Det_plate/"+to_string(frameCount)+"_"+to_string(confidence)+"_cor.jpg", plate_cor); // 再經過角度校正
 			plateValid = 1;
 			break;
 		}
