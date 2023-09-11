@@ -1,0 +1,19 @@
+新增用來做IoU, mAP部分，會輸出xmin ymin width height
+oFile << "frame" << "," << "detected" << "," << "recognized" << endl;
+ofstream detFile; // new
+detFile.open("detected.txt", ios::out | ios::trunc); // new
+
+int plateValid = 0;
+int iouX, iouY, iouW, iouH; // new
+
+plate_widen = frame_det(Rect(xmin, ymin, xmax - xmin, ymax - ymin));
+iouX = xmin; iouY = ymin; iouW = xmax - xmin; iouH = ymax - ymin; // new
+
+if (plateValid){
+    detFile << "1 " << iouX << " " << iouY << " " << iouW << " " << iouH << endl; 
+}else{
+    detFile << "0" << endl;
+}
+if (plateValid) // 上面都是new
+
+detFile.close(); // new 最底下

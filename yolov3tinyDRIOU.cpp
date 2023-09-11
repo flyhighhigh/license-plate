@@ -19,7 +19,6 @@
 #include <cmath>
 #include <iostream>
 #include <numeric>
-#include <opencv2/opencv.hpp>
 #include <opencv2/core.hpp>
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
@@ -32,105 +31,6 @@
 #include<streambuf> 
 using namespace std;
 using namespace cv;
-
-bool findIntersection(Point2f* line1, Point2f* line2, Point2f& resPt)
-{
-	Point2f pt1 = line1[0], pt2 = line1[1], pt3 = line2[0], pt4 = line2[1];
-	Point2f a = pt1 - pt2, b = pt3 - pt4;
-	float c = a.x * b.y - a.y * b.x; // cross (a,b)
-	if (c == 0) return false; // 兩線平行
-	float t1 = pt1.x * pt2.y - pt1.y * pt2.x; // cross (pt1,pt2)
-	float t2 = pt3.x * pt4.y - pt3.y * pt4.x; // cross (pt3,pt4)
-	
-	resPt.x = ( t1 * b.x - a.x * t2 ) / c;
-	resPt.y = ( t1 * b.y - a.y * t2 ) / c;
-	return true;
-}
-bool plateCorrection (Mat src, Mat& dst){
-	int height = src.size[0], width = src.size[1];
-	// preprocess
-	Mat gray, hist, th1, bin2;
-	cvtColor(src, gray, cv::COLOR_BGR2GRAY);
-	equalizeHist(gray, hist);
-	threshold(hist, th1, 127, 255, THRESH_BINARY);
-	medianBlur(th1, th1, 5);
-	adaptiveThreshold(th1, bin2, 255, ADAPTIVE_THRESH_GAUSSIAN_C, THRESH_BINARY_INV, 11, 2);
-	
-	// Find lines
-	Mat hough;
-	vector<Vec4i> linesP;
-	HoughLinesP(bin2, linesP, 1, CV_PI/180, 5, 25, 5);
-	int lineSize = linesP.size();
-	if(lineSize == 0) return false; // TODO: break
-	
-	// Lines' segmentation using angle (kmeans split to 2 set)
-	vector<Point2f> angles;
-	angles.reserve(lineSize + 4);
-	angles.push_back(Point2f(cosf(CV_PI), sinf(CV_PI)));
-	angles.push_back(Point2f(cosf(CV_2PI), sinf(CV_2PI)));
-	for(auto l: linesP){
-		float temp = 2 * (atan2f((l[1]-l[3]),(l[2]-l[0]))) + CV_PI;
-		angles.push_back(Point2f(cosf(temp), sinf(temp)));
-	}
-	Mat labels, centers;
-	kmeans(angles, 2, labels,
-			TermCriteria( TermCriteria::EPS + TermCriteria::MAX_ITER, 10, 1.0),
-			10, KMEANS_RANDOM_CENTERS, centers);
-	
-	// Find center angle of two line set
-	vector<float> resultAngle;
-	int H = labels.at<int>(0,0) == 0 ? 0 : 1; // horizonal index
-	int V = H == 0 ? 1 : 0;
-	for(int i =0; i< centers.rows; i++){
-		resultAngle.push_back((atan2f(centers.at<float>(i,1), centers.at<float>(i,0)) + CV_PI) / 2);
-	}
-	// cout << "H: " << resultAngle[H] << endl;
-	// cout << "V: " << resultAngle[V] << endl;
-
-	float w = width / 2;
-	float h = height / 2;
-	Point2f lineTop[2], lineDwn[2], lineLft[2], lineRht[2];
-	float cosVal = cosf(resultAngle[H]) * 1000;
-	float sinVal = sinf(resultAngle[H]) * 1000;
-	lineTop[0].x = w + cosVal; // x1
-	lineTop[0].y = 0 - sinVal; // y1
-	lineTop[1].x = w - cosVal; // x2
-	lineTop[1].y = 0 + sinVal; // y2
-	lineDwn[0].x = w + cosVal; // x1
-	lineDwn[0].y = height - sinVal; // y1
-	lineDwn[1].x = w - cosVal; // x2
-	lineDwn[1].y = height + sinVal; // y2
-
-	cosVal = cosf(resultAngle[V]) * 1000;
-	sinVal = sinf(resultAngle[V]) * 1000;
-	lineLft[0].x = 0 + cosVal; // x1
-	lineLft[0].y = h - sinVal; // y1
-	lineLft[1].x = 0 - cosVal; // x2
-	lineLft[1].y = h + sinVal; // y2
-	lineRht[0].x = width + cosVal; // x1
-	lineRht[0].y = h - sinVal; // y1
-	lineRht[1].x = width - cosVal; // x2
-	lineRht[1].y = h + sinVal; // y2
-
-	Point2f srcPt[4];
-	Point2f dstPt[4] = {Point2f(0,0), Point2f(width,0), Point2f(width,height), Point2f(0,height)};
-	bool b1, b2, b3, b4;
-	b1 = findIntersection(lineLft, lineTop, srcPt[0]);
-	b2 = findIntersection(lineTop, lineRht, srcPt[1]);
-	b3 = findIntersection(lineRht, lineDwn, srcPt[2]);
-	b4 = findIntersection(lineDwn, lineLft, srcPt[3]);
-	// for(auto pt: srcPt){
-	// 	cout << pt << endl;
-	// }
-
-	if(!(b1 && b2 && b3 && b4)) return false; // TODO: break
-
-	Mat M = getPerspectiveTransform(srcPt, dstPt), warped;
-	warpPerspective(src, dst, M, Size(width,height), INTER_LINEAR);
-	return true;
-	// imshow("warped", warped);
-	// waitKey(0);
-}
 
 // The parameters of yolov3_voc, each value could be set as actual needs.
 // Such format could be refer to the prototxts in /etc/dpu_model_param.d.conf/.
@@ -467,6 +367,8 @@ int main(int argc, char* argv[]) {
 	ofstream oFile;
 	oFile.open("result.csv", ios::out | ios::trunc);
 	oFile << "frame" << "," << "detected" << "," << "recognized" << endl;
+	ofstream detFile;
+	detFile.open("detected.txt", ios::out | ios::trunc);
 
 	auto t_start = chrono::high_resolution_clock::now();
 	while (cap.read(frame_det))
@@ -477,7 +379,7 @@ int main(int argc, char* argv[]) {
 		plateStr = "";
 		showStr = "";
 		flag = 0;
-		Mat plate, plate_det, plate_widen, plate_resize, plate_cor;
+		Mat plate;
 		//input_cols_det.push_back(frame_det.cols);
 		//input_rows_det.push_back(frame_det.rows);
 		resize(frame_det, image_det, size_det); // frame_det原圖 image_det縮放後 size_det模型tensor的size
@@ -520,61 +422,41 @@ int main(int argc, char* argv[]) {
 		if (sortConf_det.size() > 1)
 			sort(sortConf_det.begin(), sortConf_det.end(), sortFunc);
 		int plateValid = 0;
+		int iouX, iouY, iouW, iouH;
 
 		//get the plate area in initial image 取得原本圖片中的車牌部分
 		for (int i = 0; i < sortConf_det.size(); i++)
 		{
-			float confidence = sortConf_det[i][0]; // 取最大信心的 或是唯一一個
-			int xmin = int(sortConf_det[i][1]);
-			int ymin = int(sortConf_det[i][2]);
-			int xmax = int(sortConf_det[i][3]);
-			int ymax = int(sortConf_det[i][4]);
-			// int rows = frame_det.cols, cols = frame_det.cols;
+			float confidence = sortConf_det[0][0]; // 取最大信心的 或是唯一一個
+			int xmin = int(sortConf_det[0][1]);
+			int ymin = int(sortConf_det[0][2]);
+			int xmax = int(sortConf_det[0][3]);
+			int ymax = int(sortConf_det[0][4]);
 			//use aspect ratio, width, height to avoid the error judge
-			// if (((xmax - xmin) < (ymax - ymin)) || ((xmax - xmin) > 3 * (ymax - ymin)) || (xmax - xmin > 200) || (ymax - ymin > 100))
-			// 	continue;
-			
-			// 我的threshold 比例不得瘦於10:13 不得胖於3:1 pixel數不得少於6000
-			// if (((xmax - xmin) * 13 < (ymax - ymin) * 10) || ((xmax - xmin) > 3 * (ymax - ymin)) || (xmax - xmin) * (ymax - ymin) < 6000)
-			// 	continue;
-			
-			plate_det = frame_det(Rect(xmin, ymin, xmax - xmin, ymax - ymin));
-
-			// widen the region 取得車牌部分時，多取一點 以避免不小心切掉
+			if (((xmax - xmin) / (ymax - ymin) < 1) || ((xmax - xmin) / (ymax - ymin) > 3) || (xmax - xmin > 200) || (ymax - ymin > 100))
+				continue;
+			//widen the region 取得車牌部分時，多取一點 以避免不小心切掉
 			xmin = max(xmin - 5, 0);
 			xmax = min(xmax + 5, frame_det.cols);
 			ymin = max(ymin - 5, 0);
 			ymax = min(ymax + 5, frame_det.rows);
-			// --- 4:3 widen
-			if((xmax - xmin) * 3 > (ymax - ymin) * 4){ // 比4:3還扁，讓他變成4:3
-				int outer = ((xmax - xmin) * 3 - (ymax - ymin) * 4) / 8; // 新增部分
-				ymin = max(ymin - outer, 0);
-				ymax = min(ymax + outer, frame_det.rows);
-			} else if ((xmax - xmin) * 3 < (ymax - ymin) * 4){
-				int outer = ((ymax - ymin) * 4 - (xmax - xmin) * 3) / 6; // 新增部分
-				xmin = max(xmin - outer, 0);
-				xmax = min(xmax + outer, frame_det.cols);
-			}
-			plate_widen = frame_det(Rect(xmin, ymin, xmax - xmin, ymax - ymin));
 			//cout << "RESULT: " << "plate" << "\t" << xmin << "\t" << ymin << "\t" << xmax << "\t" << ymax << "\t" << confidence << "\n";
-			resize(plate_widen, plate_resize, Size(512, 224));
+			plate = frame_det(Rect(xmin, ymin, xmax - xmin, ymax - ymin));
+			iouX = xmin; iouY = ymin; iouW = xmax - xmin; iouH = ymax - ymin;
 			
-			// 做校正
-			// bool b = plateCorrection(plate_resize, plate_cor);
-			// if(b) plate = plate_cor;
-			// else plate = plate_resize;
-			// 不做校正的話
-			plate = plate_resize;
+			// my code here
+			resize(plate, plate, Size(512, 224));
 
 			//rectangle(frame_det, Point(xmin, ymin), Point(xmax, ymax), Scalar(0, 255, 0), 2, 1, 0);
-			imwrite("./Det_plate/"+to_string(frameCount)+"_"+to_string(confidence)+"_det.jpg", plate_det); // 偵測到的車牌
-			imwrite("./Det_plate/"+to_string(frameCount)+"_"+to_string(confidence)+"_widen.jpg", plate_widen); // 偵測到的車牌+5pix 再做4:3 widen
-			imwrite("./Det_plate/"+to_string(frameCount)+"_"+to_string(confidence)+"_resize.jpg", plate_resize); // 再resize成512:224
-			// imwrite("./Det_plate/"+to_string(frameCount)+"_"+to_string(confidence)+"_cor.jpg", plate_cor); // 再經過角度校正
+
 			plateValid = 1;
 			break;
 		}
-		
+		if (plateValid){
+			detFile << "1 " << iouX << " " << iouY << " " << iouW << " " << iouH << endl; 
+		}else{
+			detFile << "0" << endl;
+		}
 		if (plateValid) // 如果上面的code有偵測到車牌
 		{
 			//cout<<"col: "<<plate.cols<<", row: "<<plate.rows<<endl;
@@ -660,7 +542,7 @@ int main(int argc, char* argv[]) {
 			}
 			oFile<<1<<",";
 			oFile<<plateStr<<endl;
-			imwrite("./Result_plate/"+to_string(frameCount)+"_"+plateStr+"_result.jpg",plate);
+			//imwrite("./Result_plate/"+to_string(frameCount)+"_"+plateStr+"_result.jpg",plate);
 		}
 		else
 		{
@@ -760,6 +642,8 @@ int main(int argc, char* argv[]) {
 	cout << diff << "s" << endl;
 	cout << "fps:" << frameCount / diff * 1000 << endl;
 
+	detFile.close(); // new 最底下
+	
 	return 0;
 }
 

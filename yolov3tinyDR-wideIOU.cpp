@@ -467,6 +467,8 @@ int main(int argc, char* argv[]) {
 	ofstream oFile;
 	oFile.open("result.csv", ios::out | ios::trunc);
 	oFile << "frame" << "," << "detected" << "," << "recognized" << endl;
+	ofstream detFile;
+	detFile.open("detected.txt", ios::out | ios::trunc);
 
 	auto t_start = chrono::high_resolution_clock::now();
 	while (cap.read(frame_det))
@@ -520,6 +522,7 @@ int main(int argc, char* argv[]) {
 		if (sortConf_det.size() > 1)
 			sort(sortConf_det.begin(), sortConf_det.end(), sortFunc);
 		int plateValid = 0;
+		int iouX, iouY, iouW, iouH;
 
 		//get the plate area in initial image 取得原本圖片中的車牌部分
 		for (int i = 0; i < sortConf_det.size(); i++)
@@ -535,8 +538,8 @@ int main(int argc, char* argv[]) {
 			// 	continue;
 			
 			// 我的threshold 比例不得瘦於10:13 不得胖於3:1 pixel數不得少於6000
-			if (((xmax - xmin) * 13 < (ymax - ymin) * 10) || ((xmax - xmin) > 3 * (ymax - ymin)) || (xmax - xmin) * (ymax - ymin) < 6000)
-				continue;
+			// if (((xmax - xmin) * 13 < (ymax - ymin) * 10) || ((xmax - xmin) > 3 * (ymax - ymin)) || (xmax - xmin) * (ymax - ymin) < 6000)
+			// 	continue;
 			
 			plate_det = frame_det(Rect(xmin, ymin, xmax - xmin, ymax - ymin));
 
@@ -556,6 +559,7 @@ int main(int argc, char* argv[]) {
 				xmax = min(xmax + outer, frame_det.cols);
 			}
 			plate_widen = frame_det(Rect(xmin, ymin, xmax - xmin, ymax - ymin));
+			iouX = xmin; iouY = ymin; iouW = xmax - xmin; iouH = ymax - ymin;
 			//cout << "RESULT: " << "plate" << "\t" << xmin << "\t" << ymin << "\t" << xmax << "\t" << ymax << "\t" << confidence << "\n";
 			resize(plate_widen, plate_resize, Size(512, 224));
 			
@@ -567,12 +571,18 @@ int main(int argc, char* argv[]) {
 			plate = plate_resize;
 
 			//rectangle(frame_det, Point(xmin, ymin), Point(xmax, ymax), Scalar(0, 255, 0), 2, 1, 0);
-			imwrite("./Det_plate/"+to_string(frameCount)+"_"+to_string(confidence)+"_det.jpg", plate_det); // 偵測到的車牌
-			imwrite("./Det_plate/"+to_string(frameCount)+"_"+to_string(confidence)+"_widen.jpg", plate_widen); // 偵測到的車牌+5pix 再做4:3 widen
-			imwrite("./Det_plate/"+to_string(frameCount)+"_"+to_string(confidence)+"_resize.jpg", plate_resize); // 再resize成512:224
+			// imwrite("./Det_plate/"+to_string(frameCount)+"_"+to_string(confidence)+"_det.jpg", plate_det); // 偵測到的車牌
+			// imwrite("./Det_plate/"+to_string(frameCount)+"_"+to_string(confidence)+"_widen.jpg", plate_widen); // 偵測到的車牌+5pix 再做4:3 widen
+			// imwrite("./Det_plate/"+to_string(frameCount)+"_"+to_string(confidence)+"_resize.jpg", plate_resize); // 再resize成512:224
 			// imwrite("./Det_plate/"+to_string(frameCount)+"_"+to_string(confidence)+"_cor.jpg", plate_cor); // 再經過角度校正
 			plateValid = 1;
 			break;
+		}
+		
+		if (plateValid){
+			detFile << "1 " << iouX << " " << iouY << " " << iouW << " " << iouH << endl; 
+		}else{
+			detFile << "0" << endl;
 		}
 		
 		if (plateValid) // 如果上面的code有偵測到車牌
@@ -759,6 +769,8 @@ int main(int argc, char* argv[]) {
 	//double diff = ((double)(end-start))/CLOCKS_PER_SEC;
 	cout << diff << "s" << endl;
 	cout << "fps:" << frameCount / diff * 1000 << endl;
+
+	detFile.close();
 
 	return 0;
 }
