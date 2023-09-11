@@ -423,6 +423,7 @@ int main(int argc, char* argv[]) {
 			sort(sortConf_det.begin(), sortConf_det.end(), sortFunc);
 		int plateValid = 0;
 		int iouX, iouY, iouW, iouH;
+		float iouC;
 
 		//get the plate area in initial image 取得原本圖片中的車牌部分
 		for (int i = 0; i < sortConf_det.size(); i++)
@@ -443,7 +444,7 @@ int main(int argc, char* argv[]) {
 			//cout << "RESULT: " << "plate" << "\t" << xmin << "\t" << ymin << "\t" << xmax << "\t" << ymax << "\t" << confidence << "\n";
 			plate = frame_det(Rect(xmin, ymin, xmax - xmin, ymax - ymin));
 			iouX = xmin; iouY = ymin; iouW = xmax - xmin; iouH = ymax - ymin;
-			
+			iouC = confidence;
 			// my code here
 			resize(plate, plate, Size(512, 224));
 
@@ -453,7 +454,7 @@ int main(int argc, char* argv[]) {
 			break;
 		}
 		if (plateValid){
-			detFile << "1 " << iouX << " " << iouY << " " << iouW << " " << iouH << endl; 
+			detFile << "1 " << iouC << " " << iouX << " " << iouY << " " << iouW << " " << iouH << endl; 
 		}else{
 			detFile << "0" << endl;
 		}

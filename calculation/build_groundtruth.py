@@ -1,6 +1,6 @@
 import os
 
-dirs = ["groundtruth_641","groundtruth_2411"]
+dirs = ["groundtruth_1","groundtruth_2"]
 
 for d in dirs:
     os.chdir(d)
