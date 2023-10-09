@@ -37,8 +37,8 @@ bool findIntersection(Point2f* line1, Point2f* line2, Point2f& resPt)
 {
 	Point2f pt1 = line1[0], pt2 = line1[1], pt3 = line2[0], pt4 = line2[1];
 	Point2f a = pt1 - pt2, b = pt3 - pt4;
-	float c = a.x * b.y - a.y * b.x; // cross (a,b)
-	if (c == 0) return false; // 兩線平行
+	float c = a.x * b.y - a.y * b.x; // cross (a,b)外積
+	if (c == 0) return false; // 兩線平行或重合，外積=0
 	float t1 = pt1.x * pt2.y - pt1.y * pt2.x; // cross (pt1,pt2)
 	float t2 = pt3.x * pt4.y - pt3.y * pt4.x; // cross (pt3,pt4)
 	

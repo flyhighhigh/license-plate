@@ -67,6 +67,6 @@ for video_num in [1,2]:
 
 precision = TP / (TP + FP) # 確實有車牌/預測有車牌
 recall = TP / (TP + FN) # 預測出的車牌/GroundTruth車牌數
-print(f"TP:{TP} FP:{FP} FN:{FN}")
+print(f"TP:{TP} FP:{FP} FN:{FN} TN:{TN}")
 print("precision: ", precision)
 print("recall: ",recall)
