@@ -692,7 +692,7 @@ int main(int argc, char* argv[]) {
 		//if (frameCount > 200)
 			//break;
 	}
-	cap.release();
+	// cap.release();
 	//VW.release();
 	destroyAllWindows();
 	auto t_end = chrono::high_resolution_clock::now();
