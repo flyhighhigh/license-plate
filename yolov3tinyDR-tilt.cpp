@@ -602,7 +602,7 @@ int main(int argc, char* argv[]) {
 			}
 			oFile<<1<<",";
 			oFile<<plateStr<<endl;
-			imwrite("./Result_plate/"+to_string(frameCount)+"_"+plateStr+"_result.jpg",plate);
+			imwrite("./Result_plate/result_"+ imgs_names[i].substr(0,imgs_names[i].length()-4)+ "_"+plateStr+".jpg",plate);
 		}
 		else
 		{
