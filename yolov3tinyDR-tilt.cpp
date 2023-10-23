@@ -407,7 +407,8 @@ int main(int argc, char* argv[]) {
 	{
 		oFile << frameCount << ",";
 		cout << "Frame: " << frameCount << endl;
-		frame_det = tiltCorrection(imgs[i]);
+		// frame_det = tiltCorrection(imgs[i]);
+		frame_det = imgs[i];
 		plateStr = "";
 		showStr = "";
 		flag = 0;
@@ -504,9 +505,9 @@ int main(int argc, char* argv[]) {
 			// 不做校正的話
 			plate = plate_resize;
 
-			rectangle(frame_det, Point(xmin, ymin), Point(xmax, ymax), Scalar(0, 255, 0), 2, 1, 0);
-			imwrite("./Det_plate/"+to_string(frameCount)+"_"+to_string(confidence)+"_frame.jpg", frame_det); // 偵測到的車牌
-			imwrite("./Det_plate/"+to_string(frameCount)+"_"+to_string(confidence)+"_plate.jpg", plate); // 偵測到的車牌
+			// rectangle(frame_det, Point(xmin, ymin), Point(xmax, ymax), Scalar(0, 255, 0), 2, 1, 0);
+			// imwrite("./Det_plate/"+to_string(frameCount)+"_"+to_string(confidence)+"_frame.jpg", frame_det); // 偵測到的車牌
+			imwrite("./Det_plate/plate_"+ imgs_names[i].substr(0,imgs_names[i].length()-4)+ "_"+ to_string(confidence)+".jpg", plate); // 偵測到的車牌
 			plateValid = 1;
 			break;
 		}
